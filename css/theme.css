@@ -1,0 +1,42 @@
+
+.header {
+  background: #dbdbdb;
+  border-bottom: 0.3em solid #c7a767;
+  box-shadow: 0 5px 10px #b5b5b5;
+}
+
+.content input {
+  
+}
+
+.verse_box {
+  margin: 1em 0;
+  background: lightblue;
+  border: 0.1em solid blue;
+  border-radius: 0.5em;
+  overflow: hidden;
+  box-shadow: 0 0.2em 0.5em grey;
+}
+.verse_number {
+  background: tan;
+}
+
+.copy_options {
+  background: #decfb1;
+  border: 0.2em solid #c7a767;
+  border-radius: 0.5em;
+  box-shadow: 3px 0 10px #b5b5b5;
+  margin: 0 0 2em;
+}
+
+.quick_nav {
+  background: #decfb1;
+  border: 0.2em solid #c7a767;
+  border-radius: 0.5em;
+  box-shadow: 3px 0 10px #b5b5b5;
+  overflow: hidden;
+}
+
+.footer {
+  background-color: #efefef;
+}

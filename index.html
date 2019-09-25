@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>script.re</title>
+  <meta name="description" content="get Scripture">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <!-- Place favicon.ico in the root directory -->
+
+  <link rel="stylesheet" href="css/normalize.css">
+  <link rel="stylesheet" href="css/layout.css">
+  <link rel="stylesheet" href="css/theme.css">
+  <link rel="stylesheet" href="css/quick_nav.css">
+
+</head>
+
+<body>
+<div class="page_wrapper">
+  <!--[if IE]>
+    <p class="browserupgrade">You are using an <strong>outdated</strong> browser. Please <a href="https://browsehappy.com/">upgrade your browser</a> to improve your experience and security.</p>
+  <![endif]-->
+
+  
+  <div class="header">
+	  <p>@:::)===&gt;</p>
+  </div>
+  <div class="container">
+  <div id="content" class="content">
+	  <input id="searchBox" type="text" autofocus="autofocus" placeholder="Reference or word search..." />
+  </div>
+  <div class="sidebar">
+	  <div class="copy_options">
+		  <button onclick="loadVerses()">Load Verse</button>
+	  </div>
+	  <div class="quick_nav">
+		  {{template "quick_nav"}}
+	  </div>
+  </div>
+  </div>
+</div>
+  <footer class="footer">
+	  <a href="https://docs.script.re/">docs</a>
+	  <a href="https://foundation.bible/">foundation bible ministries</a>
+  </footer>
+  <script src="js/scriptre.js"></script>
+</body>
+
+</html>
