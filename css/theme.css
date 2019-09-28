@@ -7,6 +7,8 @@ html {
   border-bottom: 0.3em solid #c7a767;
   box-shadow: 0 5px 10px #b5b5b5;
 }
+.header p {
+}
 
 .content input {
   

@@ -4,9 +4,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"net/url"
+	"strconv"
 	"strings"
 	"unicode"
-	"strconv"
 )
 
 type Reference struct {
@@ -62,9 +63,9 @@ func narrowBook(canon string, query []byte, startingNarrow []int) (int, []int) {
 	var selectedBook int
 	var bookIsSelected bool
 
-
 	//get the *index* of the last character of the query using len
 	lenIndex := len(query) - 1
+	fmt.Printf("query is %v long\n", len(query))
 	//compare the *last* character in query with the indexnth character of each remaining book in startingNarrow
 	//create a new []int to include the newNarrow
 	var newNarrow []int
@@ -79,10 +80,8 @@ func narrowBook(canon string, query []byte, startingNarrow []int) (int, []int) {
 				if bookIsSelected == false {
 					selectedBook = startingNarrow[i]
 					bookIsSelected = true
-					fmt.Printf("initially selecting %v\n", booknames[i])
-				}else if curBookWeight > selBookWeight {
+				} else if curBookWeight > selBookWeight {
 					selectedBook = startingNarrow[i]
-					fmt.Printf("current: %v is greater than %v in book %v\n", curBookWeight, selBookWeight, booknames[startingNarrow[i]])
 				}
 			}
 		}
@@ -96,10 +95,8 @@ func narrowBook(canon string, query []byte, startingNarrow []int) (int, []int) {
 				if bookIsSelected == false {
 					selectedBook = i
 					bookIsSelected = true
-					fmt.Printf("initially selecting %v\n", booknames[i])
-				}else if curBookWeight > selBookWeight {
+				} else if curBookWeight > selBookWeight {
 					selectedBook = i
-					fmt.Printf("current: %v is greater than %v in book %v\n", curBookWeight, selBookWeight, booknames[i])
 				}
 			}
 		}
@@ -108,11 +105,72 @@ func narrowBook(canon string, query []byte, startingNarrow []int) (int, []int) {
 
 }
 
+func narrowPrefix(canon string, prefix int) (int, []int) {
+	var newNarrow []int
+	var bookIsSelected bool
+	var selectedBook int
+
+	if prefix == 1 {
+		for i, bookname := range booknames {
+			if bookname[0] == "I" {
+				newNarrow = append(newNarrow, i)
+				curBookWeight, _ := strconv.Atoi(booknames[i][2])
+				selBookWeight, _ := strconv.Atoi(booknames[selectedBook][2])
+
+				if bookIsSelected == false {
+					selectedBook = i
+					bookIsSelected = true
+				} else if curBookWeight > selBookWeight {
+					selectedBook = i
+				}
+			}
+		}
+	}
+
+	if prefix == 2 {
+		for i, bookname := range booknames {
+			if bookname[0] == "II" {
+				newNarrow = append(newNarrow, i)
+				curBookWeight, _ := strconv.Atoi(booknames[i][2])
+				selBookWeight, _ := strconv.Atoi(booknames[selectedBook][2])
+
+				if bookIsSelected == false {
+					selectedBook = i
+					bookIsSelected = true
+				} else if curBookWeight > selBookWeight {
+					selectedBook = i
+				}
+			}
+		}
+	}
+
+	if prefix == 3 {
+		for i, bookname := range booknames {
+			if bookname[0] == "III" {
+				newNarrow = append(newNarrow, i)
+				curBookWeight, _ := strconv.Atoi(booknames[i][2])
+				selBookWeight, _ := strconv.Atoi(booknames[selectedBook][2])
+
+				if bookIsSelected == false {
+					selectedBook = i
+					bookIsSelected = true
+				} else if curBookWeight > selBookWeight {
+					selectedBook = i
+				}
+			}
+		}
+	}
+
+	return selectedBook, newNarrow
+}
+
 func getRef(request string, canon string) (Reference, error) {
 
 	var result Reference
 	//get the right canon
-
+	fmt.Printf("encoded request [[%v]]\n", request)
+	request, _ = url.QueryUnescape(request)
+	fmt.Printf("decoded request [[%v]]\n", request)
 
 	//clean up the string a bit by removing anything other than recognized characters
 	var firstLetterIndex int
@@ -124,14 +182,50 @@ func getRef(request string, canon string) (Reference, error) {
 			break
 		}
 	}
+	var firstNumberIndex int
+	for i, character := range []rune(request) {
+		if unicode.IsNumber(character) {
+			//we found a number
+			fmt.Printf("found a number in position %v\n", i)
+			firstNumberIndex = i
+			break
+		}
+	}
+
+	var narrow []int
+
 	//determine if we have a prefix (1, I, First, etc)
-	//once we know the first place a letter occurs, pass this information on to narrow
+	//do we have a number before a letter?
+	if firstNumberIndex < firstLetterIndex {
+		firstNumberString := string(request[firstNumberIndex])
+		firstNumber, _ := strconv.Atoi(firstNumberString)
+		fmt.Printf("looks like we have a number prefix: %v\n", firstNumber)
+
+		if firstNumber < 4 {
+			fmt.Printf("number is less than 4\n")
+			if !(unicode.IsNumber(rune(request[firstNumberIndex+1]))) {
+				fmt.Printf("we have just one number. passing %v on\n", firstNumber)
+				_, narrow = narrowPrefix(canon, firstNumber)
+				fmt.Printf("narrow is now %v\n", narrow)
+			}
+		}
+	}
+	//if not, is the first letter an i?
+	//if so, what is the i followed by?
+	//if not, is the first letter an f?
+	//if so, is it the word first?
+	//if not, is the first letter an s?
+	//if so, is it the word second?
+	//if not, is the first letter a t?
+	//if so, is it the word third?
+
+	//now we need to narrow this down to a specific book
 	var reqWord []byte
 	reqWord = []byte(fmt.Sprintf("%s", request[firstLetterIndex:]))
 
-	var narrow []int
 	var bookNameIndex int
 	for i, _ := range []rune(request) {
+		fmt.Printf("sending %v to narrow with length of %v\n", reqWord[:i+1], len(reqWord[:i+1]))
 		curBook, newNarrow := narrowBook(canon, reqWord[:i+1], narrow)
 		narrow = newNarrow
 		bookNameIndex = curBook
@@ -139,7 +233,9 @@ func getRef(request string, canon string) (Reference, error) {
 			break
 		}
 		i = i + 1
-		fmt.Printf("\n\n")
+		if i == (len(request) - 1) {
+			break
+		}
 	}
 	fmt.Printf("Final Bookname: %v\n", booknames[bookNameIndex])
 	//req := unicode.ToLower(request[indexoffirstletter])
@@ -153,12 +249,12 @@ func getRef(request string, canon string) (Reference, error) {
 	//parse request to see what reference numbers are being looked for
 	//
 	/*
-	if booknames[bookNameIndex][0] != "" {
-		result.Book = booknames[bookNameIndex][1]
-	} else {
-		result.Book = fmt.Sprintf("%s %s", booknames[bookNameIndex][0], booknames[bookNameIndex][1])
-	}
-	return result, nil
+		if booknames[bookNameIndex][0] != "" {
+			result.Book = booknames[bookNameIndex][1]
+		} else {
+			result.Book = fmt.Sprintf("%s %s", booknames[bookNameIndex][0], booknames[bookNameIndex][1])
+		}
+		return result, nil
 	*/
 	result.Book = fmt.Sprintf("%s %s", booknames[bookNameIndex][0], booknames[bookNameIndex][1])
 	return result, nil
