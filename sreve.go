@@ -1,14 +1,18 @@
 package main
 
 import (
-	//	"fmt"
+	"bufio"
+	"fmt"
 	"html/template"
 	"io/ioutil"
 	"log"
 	"net/http"
+	"os"
+	"strings"
 )
 
 var templates = template.Must(template.ParseFiles("index.html"))
+var booknames [][3]string
 
 type Thingy struct {
 	Title string
@@ -35,10 +39,32 @@ func loadFile(file string) (*[]byte, error) {
 }
 
 func main() {
+	//preload data
+	initialize()
+	//handlers
 	http.HandleFunc("/", handleWeb)
 	http.HandleFunc("/v0/", handleAPIBeta)
 	http.Handle("/css/", http.StripPrefix("/css/", http.FileServer(http.Dir("css"))))
 	http.Handle("/js/", http.StripPrefix("/js/", http.FileServer(http.Dir("js"))))
 
 	log.Fatal(http.ListenAndServe(":80", nil))
+}
+
+func initialize() {
+	//determine which canon to use
+	canon := "protestant"
+	//get or have list of books in canon
+	canonFilename := fmt.Sprintf("./index/%s.canon", canon)
+	file, _ := os.Open(canonFilename)
+	scanner := bufio.NewScanner(file)
+
+	for scanner.Scan() {
+		var bookInfo [3]string
+		rawBookInfo := strings.Split(scanner.Text(), ";")
+		bookInfo[0] = rawBookInfo[0]
+		bookInfo[1] = rawBookInfo[1]
+		bookInfo[2] = rawBookInfo[2]
+		booknames = append(booknames, bookInfo)
+	}
+
 }

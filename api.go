@@ -1,12 +1,12 @@
-package main 
+package main
+
 import (
-	"bufio"
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"os"
 	"strings"
 	"unicode"
+	"strconv"
 )
 
 type Reference struct {
@@ -36,9 +36,7 @@ func handleAPIBeta(w http.ResponseWriter, r *http.Request) {
 	for _, param := range urlparams {
 		thisParam := strings.Split(param, "=")
 		params[thisParam[0]] = thisParam[1]
-		fmt.Printf("%v\n", thisParam[1])
 	}
-	fmt.Printf("%v\n\n", params)
 	ref, _ := getRef(params["query"], "protestant")
 	fmt.Printf("Found Reference: %v\n", ref)
 	verse := &Verse{
@@ -55,65 +53,68 @@ func handleAPIBeta(w http.ResponseWriter, r *http.Request) {
 	}
 	jsonVerse, _ := json.Marshal(verse)
 	fmt.Fprintf(w, "%s", jsonVerse)
+	fmt.Printf("\n\n")
 	return
 }
 
-func narrowBook(canon string, query []byte, startingNarrow []int) (string, []int) {
+func narrowBook(canon string, query []byte, startingNarrow []int) (int, []int) {
 
-	var selectedBookName string
+	var selectedBook int
+	var bookIsSelected bool
 
-	//get or have list of books in canon
-	canonFilename := fmt.Sprintf("./index/%s.canon", canon)
-	file, _ := os.Open(canonFilename)
-	scanner := bufio.NewScanner(file)
 
-	var booknames []string
-
-	for scanner.Scan() {
-		booknames = append(booknames, scanner.Text())
-	}
-
-	fmt.Printf("%v\n", booknames)
 	//get the *index* of the last character of the query using len
 	lenIndex := len(query) - 1
-	fmt.Printf("Query length: %v using query index: %v\n", len(query), lenIndex)
 	//compare the *last* character in query with the indexnth character of each remaining book in startingNarrow
-	fmt.Printf("Using: %v\n", startingNarrow)
 	//create a new []int to include the newNarrow
 	var newNarrow []int
+	//if staringNarrow is empty it will only run the else here
 	if len(startingNarrow) > 0 {
 		for i := range startingNarrow {
-			fmt.Printf("comparing %s to %s in %s\n", unicode.ToLower(rune(query[lenIndex])), unicode.ToLower(rune(booknames[startingNarrow[i]][lenIndex])), booknames[startingNarrow[i]])
-			if unicode.ToLower(rune(query[lenIndex])) == unicode.ToLower(rune(booknames[startingNarrow[i]][lenIndex])) {
-				fmt.Printf("found match!\n")
+			if unicode.ToLower(rune(query[lenIndex])) == unicode.ToLower(rune(booknames[startingNarrow[i]][1][lenIndex])) {
+				curBookWeight, _ := strconv.Atoi(booknames[startingNarrow[i]][2])
+				selBookWeight, _ := strconv.Atoi(booknames[selectedBook][2])
+
 				newNarrow = append(newNarrow, startingNarrow[i])
-				selectedBookName = booknames[startingNarrow[i]]
+				if bookIsSelected == false {
+					selectedBook = startingNarrow[i]
+					bookIsSelected = true
+					fmt.Printf("initially selecting %v\n", booknames[i])
+				}else if curBookWeight > selBookWeight {
+					selectedBook = startingNarrow[i]
+					fmt.Printf("current: %v is greater than %v in book %v\n", curBookWeight, selBookWeight, booknames[startingNarrow[i]])
+				}
 			}
 		}
 	} else {
 		for i, bookname := range booknames {
-			//TODO skip if not in startingNarrow
-			if unicode.ToLower(rune(query[lenIndex])) == unicode.ToLower(rune(bookname[lenIndex])) {
+			if unicode.ToLower(rune(query[lenIndex])) == unicode.ToLower(rune(bookname[1][lenIndex])) {
+				curBookWeight, _ := strconv.Atoi(booknames[i][2])
+				selBookWeight, _ := strconv.Atoi(booknames[selectedBook][2])
+
 				newNarrow = append(newNarrow, i)
-				selectedBookName = bookname
+				if bookIsSelected == false {
+					selectedBook = i
+					bookIsSelected = true
+					fmt.Printf("initially selecting %v\n", booknames[i])
+				}else if curBookWeight > selBookWeight {
+					selectedBook = i
+					fmt.Printf("current: %v is greater than %v in book %v\n", curBookWeight, selBookWeight, booknames[i])
+				}
 			}
 		}
 	}
-	fmt.Printf("Selected Book: %v\n", selectedBookName)
-	//return empty string if int slice contains more than one item
-	if len(newNarrow) > 1 {
-		return "", newNarrow
-	}
-	var emptyintvar []int
-	return selectedBookName, emptyintvar
+	return selectedBook, newNarrow
 
 }
 
 func getRef(request string, canon string) (Reference, error) {
 
 	var result Reference
+	//get the right canon
 
-	//parse the string to see if there is a word somewhere
+
+	//clean up the string a bit by removing anything other than recognized characters
 	var firstLetterIndex int
 	for i, character := range []rune(request) {
 		if unicode.IsLetter(character) {
@@ -123,30 +124,24 @@ func getRef(request string, canon string) (Reference, error) {
 			break
 		}
 	}
+	//determine if we have a prefix (1, I, First, etc)
 	//once we know the first place a letter occurs, pass this information on to narrow
 	var reqWord []byte
 	reqWord = []byte(fmt.Sprintf("%s", request[firstLetterIndex:]))
-	//canon
-	//first character of the first word
-	//empty int slice
+
 	var narrow []int
-	var bookName string
-	var i int
-	i = 1
-	for {
-		fmt.Printf("narrow before: %v\n", narrow)
-		fmt.Printf("reqWord: %v\n", reqWord[:i])
-		curBookName, newNarrow := narrowBook(canon, reqWord[:i], narrow)
+	var bookNameIndex int
+	for i, _ := range []rune(request) {
+		curBook, newNarrow := narrowBook(canon, reqWord[:i+1], narrow)
 		narrow = newNarrow
-		fmt.Printf("narrow after: %v\n", narrow)
+		bookNameIndex = curBook
 		if len(narrow) < 2 {
-			bookName = curBookName
 			break
 		}
 		i = i + 1
 		fmt.Printf("\n\n")
 	}
-	fmt.Printf("Final Bookname: %v\n", bookName)
+	fmt.Printf("Final Bookname: %v\n", booknames[bookNameIndex])
 	//req := unicode.ToLower(request[indexoffirstletter])
 	//compare that to a slice of strings that represents the selected canon
 	//get the index of each match for the first letter
@@ -157,6 +152,14 @@ func getRef(request string, canon string) (Reference, error) {
 	//look up how many chapters and verses in each chapter there are for that book
 	//parse request to see what reference numbers are being looked for
 	//
-	result.Book = bookName
+	/*
+	if booknames[bookNameIndex][0] != "" {
+		result.Book = booknames[bookNameIndex][1]
+	} else {
+		result.Book = fmt.Sprintf("%s %s", booknames[bookNameIndex][0], booknames[bookNameIndex][1])
+	}
+	return result, nil
+	*/
+	result.Book = fmt.Sprintf("%s %s", booknames[bookNameIndex][0], booknames[bookNameIndex][1])
 	return result, nil
 }

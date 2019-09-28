@@ -1,4 +1,7 @@
-
+@import url('https://fonts.googleapis.com/css?family=Rubik&display=swap');
+html {
+	font-family: 'Rubic', sans-serif;
+}
 .header {
   background: #dbdbdb;
   border-bottom: 0.3em solid #c7a767;
