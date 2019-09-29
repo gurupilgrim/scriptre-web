@@ -60,6 +60,8 @@ func handleAPIBeta(w http.ResponseWriter, r *http.Request) {
 
 func narrowBook(canon string, query []byte, startingNarrow []int) (int, []int) {
 
+	fmt.Printf("narrowBook with the following: %v | %v | %v\n", canon, query, startingNarrow)
+
 	var selectedBook int
 	var bookIsSelected bool
 
@@ -164,54 +166,124 @@ func narrowPrefix(canon string, prefix int) (int, []int) {
 	return selectedBook, newNarrow
 }
 
+func verifyBook(canon string, query []byte, selectedBook int) bool {
+	//query is expected to not include the prefix or the verse number
+
+	fmt.Printf("verifying in %v with query %v against book name %v %v\n", canon, query, booknames[selectedBook][1], booknames[selectedBook][1])
+	var verified bool
+
+	//get selected book
+	bookname := booknames[selectedBook][1]
+
+	//look for a match
+	for i, character := range query {
+		if unicode.ToLower(rune(character)) == unicode.ToLower(rune(bookname[i])) {
+			fmt.Printf("%v and %v match.\n", character, bookname[i])
+			verified = true
+		} else {
+			fmt.Printf("%v and %v do not match.\n", character, bookname[i])
+			verified = false
+			break
+		}
+	}
+	return verified
+}
+
 func getRef(request string, canon string) (Reference, error) {
 
 	var result Reference
 	//get the right canon
-	fmt.Printf("encoded request [[%v]]\n", request)
 	request, _ = url.QueryUnescape(request)
-	fmt.Printf("decoded request [[%v]]\n", request)
 
 	//clean up the string a bit by removing anything other than recognized characters
 	var firstLetterIndex int
+	var firstNumberIndex int
+	var lastLetterIndex int
+	var queryBooknameStart int
+
+	var firstLetterIdentified bool
+	var firstNumberIdentified bool
+
 	for i, character := range []rune(request) {
 		if unicode.IsLetter(character) {
-			//we found a letter
-			fmt.Printf("found a letter in position %v\n", i)
-			firstLetterIndex = i
-			break
+			if firstLetterIdentified {
+				lastLetterIndex = i
+			} else {
+				firstLetterIndex = i
+				queryBooknameStart = i
+				firstLetterIdentified = true
+				lastLetterIndex = i
+			}
 		}
-	}
-	var firstNumberIndex int
-	for i, character := range []rune(request) {
-		if unicode.IsNumber(character) {
-			//we found a number
-			fmt.Printf("found a number in position %v\n", i)
+		if unicode.IsNumber(character) && !firstNumberIdentified {
 			firstNumberIndex = i
-			break
+			firstNumberIdentified = true
 		}
 	}
 
 	var narrow []int
+	var hasPrefix bool
+	fmt.Printf("starting...\n")
+	fmt.Printf("query: %v\n", request)
+	fmt.Printf("first letter: %v, first number: %v, last letter: %v, bookname start: %v\n", firstLetterIndex, firstNumberIndex, lastLetterIndex, queryBooknameStart)
 
 	//determine if we have a prefix (1, I, First, etc)
 	//do we have a number before a letter?
 	if firstNumberIndex < firstLetterIndex {
 		firstNumberString := string(request[firstNumberIndex])
 		firstNumber, _ := strconv.Atoi(firstNumberString)
-		fmt.Printf("looks like we have a number prefix: %v\n", firstNumber)
+		fmt.Printf("a number comes before some text\n")
 
 		if firstNumber < 4 {
-			fmt.Printf("number is less than 4\n")
+			fmt.Printf("first number is less than 4\n")
 			if !(unicode.IsNumber(rune(request[firstNumberIndex+1]))) {
 				fmt.Printf("we have just one number. passing %v on\n", firstNumber)
 				_, narrow = narrowPrefix(canon, firstNumber)
 				fmt.Printf("narrow is now %v\n", narrow)
 			}
 		}
+		//if not, is the first letter an i?
+	} else if unicode.ToLower(rune(request[firstLetterIndex])) == []rune("i")[0] {
+		fmt.Printf("first letter is i\n")
+		//if so, what is the i followed by?
+		//loop through subsequent characters to determine a course of action
+		for i, char := range request {
+			character := unicode.ToLower(rune(char))
+			if i > 0 {
+				if character == []rune(" ")[0] {
+					hasPrefix = true
+					fmt.Printf("i is %v\n", i)
+					fmt.Printf("looking at %v\n", request[:i])
+					if request[:i] == "i" {
+						_, narrow = narrowPrefix(canon, 1)
+						queryBooknameStart = i + 1
+						fmt.Printf("narrowed by 1")
+						break
+					} else if request[:i] == "ii" {
+						_, narrow = narrowPrefix(canon, 2)
+						queryBooknameStart = i + 1
+						fmt.Printf("narrowed by 2")
+						break
+					} else if request[:i] == "iii" {
+						_, narrow = narrowPrefix(canon, 3)
+						queryBooknameStart = i + 1
+						fmt.Printf("narrowed by 3")
+						break
+					}
+				} else if character == []rune("i")[0] {
+					if i < 3 {
+						continue
+					}
+				} else {
+					break
+				}
+			}
+		}
+		fmt.Printf("has prefix is %v\n", hasPrefix)
+		fmt.Printf("narrow is now %v\n", narrow)
+		//space, another i, another two is
+		//try narrowing by name, if the next character doesn't match a book name, treat this as a prefix
 	}
-	//if not, is the first letter an i?
-	//if so, what is the i followed by?
 	//if not, is the first letter an f?
 	//if so, is it the word first?
 	//if not, is the first letter an s?
@@ -221,21 +293,24 @@ func getRef(request string, canon string) (Reference, error) {
 
 	//now we need to narrow this down to a specific book
 	var reqWord []byte
-	reqWord = []byte(fmt.Sprintf("%s", request[firstLetterIndex:]))
+	reqWord = []byte(fmt.Sprintf("%s", request[queryBooknameStart:]))
 
 	var bookNameIndex int
-	for i, _ := range []rune(request) {
-		fmt.Printf("sending %v to narrow with length of %v\n", reqWord[:i+1], len(reqWord[:i+1]))
+	for i, char := range reqWord {
+		fmt.Printf("sending narrow %v with %v that is %v\n", narrow, char, fmt.Sprintf("%s", char))
 		curBook, newNarrow := narrowBook(canon, reqWord[:i+1], narrow)
-		narrow = newNarrow
+		fmt.Printf("got back %v and %v\n", curBook, newNarrow)
+		if len(newNarrow) == 1 {
+			bookNameIndex = curBook
+			break
+		}
+		if len(newNarrow) < 1 {
+			break
+		}
+		//we only get here if newNarrow is greater than 1
 		bookNameIndex = curBook
-		if len(narrow) < 2 {
-			break
-		}
+		narrow = newNarrow
 		i = i + 1
-		if i == (len(request) - 1) {
-			break
-		}
 	}
 	fmt.Printf("Final Bookname: %v\n", booknames[bookNameIndex])
 	//req := unicode.ToLower(request[indexoffirstletter])
@@ -243,6 +318,12 @@ func getRef(request string, canon string) (Reference, error) {
 	//get the index of each match for the first letter
 	//for each index that was a match, look for the second letter
 	//etc
+	//verify the bookname matches the rest of the query
+	//clean up the end of the string by removing anything after the last character
+	queryBookname := request[queryBooknameStart : lastLetterIndex+1]
+	fmt.Printf("verifying...\n")
+	verified := verifyBook(canon, []byte(queryBookname), bookNameIndex)
+
 	//if a book match is found, start looking for a reference within it
 
 	//look up how many chapters and verses in each chapter there are for that book
@@ -256,6 +337,8 @@ func getRef(request string, canon string) (Reference, error) {
 		}
 		return result, nil
 	*/
-	result.Book = fmt.Sprintf("%s %s", booknames[bookNameIndex][0], booknames[bookNameIndex][1])
+	if verified {
+		result.Book = fmt.Sprintf("%s %s", booknames[bookNameIndex][0], booknames[bookNameIndex][1])
+	}
 	return result, nil
 }
