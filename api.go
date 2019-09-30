@@ -15,6 +15,7 @@ type Reference struct {
 	Book         string
 	Chapter      int
 	VerseNumber  int
+	VerseRange   int
 	Canon        string
 }
 
@@ -254,17 +255,17 @@ func getRef(request string, canon string) (Reference, error) {
 					hasPrefix = true
 					fmt.Printf("i is %v\n", i)
 					fmt.Printf("looking at %v\n", request[:i])
-					if request[:i] == "i" {
+					if strings.ToLower(request[:i]) == "i" {
 						_, narrow = narrowPrefix(canon, 1)
 						queryBooknameStart = i + 1
 						fmt.Printf("narrowed by 1")
 						break
-					} else if request[:i] == "ii" {
+					} else if strings.ToLower(request[:i]) == "ii" {
 						_, narrow = narrowPrefix(canon, 2)
 						queryBooknameStart = i + 1
 						fmt.Printf("narrowed by 2")
 						break
-					} else if request[:i] == "iii" {
+					} else if strings.ToLower(request[:i]) == "iii" {
 						_, narrow = narrowPrefix(canon, 3)
 						queryBooknameStart = i + 1
 						fmt.Printf("narrowed by 3")
@@ -323,8 +324,64 @@ func getRef(request string, canon string) (Reference, error) {
 	queryBookname := request[queryBooknameStart : lastLetterIndex+1]
 	fmt.Printf("verifying...\n")
 	verified := verifyBook(canon, []byte(queryBookname), bookNameIndex)
+	if verified {
+		result.Book = fmt.Sprintf("%s %s", booknames[bookNameIndex][0], booknames[bookNameIndex][1])
+		//if a book match is found, start looking for a reference within it
 
-	//if a book match is found, start looking for a reference within it
+		var chapterNumberGroup []rune
+		var chapterNumber int
+		var foundChapterNumber bool
+		var verseNumberGroup []rune
+		var verseNumber int
+		var foundVerseNumber bool
+		var verseRangeGroup []rune
+		var verseRange int
+		var foundVerseRange bool
+		var lastNumberIndex int
+
+		for i, character := range request[lastLetterIndex:] {
+			if unicode.IsNumber(character) {
+				if !foundChapterNumber {
+					foundChapterNumber = true
+					chapterNumberGroup = append(chapterNumberGroup, character)
+					lastNumberIndex = i
+				} else if !foundVerseNumber && lastNumberIndex == i-1 {
+					chapterNumberGroup = append(chapterNumberGroup, character)
+					lastNumberIndex = i
+				} else if !foundVerseNumber && lastNumberIndex < i-1 {
+					foundVerseNumber = true
+					verseNumberGroup = append(verseNumberGroup, character)
+					lastNumberIndex = i
+				} else if !foundVerseRange && lastNumberIndex == i-1 {
+					verseNumberGroup = append(verseNumberGroup, character)
+					lastNumberIndex = i
+				} else if !foundVerseRange && lastNumberIndex < i-1 {
+					foundVerseRange = true
+					verseRangeGroup = append(verseRangeGroup, character)
+					lastNumberIndex = i
+				} else if lastNumberIndex == i-1 {
+					verseRangeGroup = append(verseRangeGroup, character)
+					lastNumberIndex = i
+				}
+			}
+			/*
+				if unicode.IsNumber(character) && !firstNumberIdentified {
+					firstNumberIndex = i
+					firstNumberIdentified = true
+				}
+			*/
+		}
+
+		//convert rune slice groups to ints
+		chapterNumber, _ = strconv.Atoi(string(chapterNumberGroup))
+		verseNumber, _ = strconv.Atoi(string(verseNumberGroup))
+		verseRange, _ = strconv.Atoi(string(verseRangeGroup))
+		result.Chapter = chapterNumber
+		result.VerseNumber = verseNumber
+		result.VerseRange = verseRange
+		fmt.Printf("complete reference should be [%v] %v:%v-%v.\n", result.Book, result.Chapter, result.VerseNumber, result.VerseRange)
+		fmt.Printf("because I have numbers [%v] %v:%v-%v.\n", booknames[bookNameIndex], chapterNumberGroup, verseNumberGroup, verseRangeGroup)
+	}
 
 	//look up how many chapters and verses in each chapter there are for that book
 	//parse request to see what reference numbers are being looked for
@@ -337,8 +394,5 @@ func getRef(request string, canon string) (Reference, error) {
 		}
 		return result, nil
 	*/
-	if verified {
-		result.Book = fmt.Sprintf("%s %s", booknames[bookNameIndex][0], booknames[bookNameIndex][1])
-	}
 	return result, nil
 }
