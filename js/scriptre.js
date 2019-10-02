@@ -22,7 +22,7 @@ function loadVerses() {
 
   ajaxRequest.onload = function() {
 	var responseData = JSON.parse(ajaxRequest.responseText);
-	verseNumP.innerHTML = responseData['Reference']['Book'] + ":" + responseData['Reference']['VerseNumber'];
+	verseNumP.innerHTML = responseData['Reference']['Book'] + " " + responseData['Reference']['Chapter'] + ":" + responseData['Reference']['VerseNumber'];
 	verseTextP.innerHTML = responseData['Text'];
 
 	verseNumDiv.appendChild(verseNumP);

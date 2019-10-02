@@ -10,26 +10,6 @@ import (
 	"unicode"
 )
 
-type Reference struct {
-	BibleVersion string
-	Book         string
-	Chapter      int
-	VerseNumber  int
-	VerseRange   int
-	Canon        string
-}
-
-type Verse struct {
-	Reference  Reference
-	Language   string
-	Subsection string
-	Text       string
-}
-
-type VerseGroup struct {
-	Verses []Verse
-}
-
 func handleAPIBeta(w http.ResponseWriter, r *http.Request) {
 	// get the query
 	url := strings.Split(r.URL.String(), "?")
@@ -41,18 +21,8 @@ func handleAPIBeta(w http.ResponseWriter, r *http.Request) {
 	}
 	ref, _ := getRef(params["query"], "protestant")
 	fmt.Printf("Found Reference: %v\n", ref)
-	verse := &Verse{
-		Reference: Reference{
-			BibleVersion: "KJV",
-			Book:         ref.Book,
-			Chapter:      1,
-			VerseNumber:  1,
-			Canon:        "protestant",
-		},
-		Language:   "en",
-		Subsection: "all",
-		Text:       r.URL.String(),
-	}
+	verse, _ := getVerse(ref)
+	fmt.Printf("verse: %+v\n", verse)
 	jsonVerse, _ := json.Marshal(verse)
 	fmt.Fprintf(w, "%s", jsonVerse)
 	fmt.Printf("\n\n")
@@ -395,4 +365,48 @@ func getRef(request string, canon string) (Reference, error) {
 		return result, nil
 	*/
 	return result, nil
+}
+
+func getVerse(ref Reference) (Verse, error) {
+
+	fmt.Printf("ref: %+v\n", ref)
+	var verse *Verse
+	//verse := bibleData[0]
+	/*
+		verse := &Verse{
+			Reference: Reference{
+				BibleVersion: "kjv",
+				Book:         ref.Book,
+				Chapter:      ref.Chapter,
+				VerseNumber:  ref.VerseNumber,
+				Canon:        "protestant",
+			},
+			Language:   "en",
+			Subsection: "all",
+			Text:       "text",
+		}
+	*/
+	for _, bible := range bibleData {
+		if bible.Version == "kjv" {
+			for _, book := range bible.Books {
+				if book.Name == ref.Book {
+					for _, chapter := range book.Chapters {
+						if chapter.Number == ref.Chapter {
+							for _, v := range chapter.Verses {
+								if v.Reference.VerseNumber == ref.VerseNumber {
+									fmt.Printf("verse: %v\n", v)
+									verse = &v
+									fmt.Printf("verse: %v\n", verse)
+									break
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+
+	fmt.Printf("verse: %v\n", verse)
+	return *verse, nil
 }
