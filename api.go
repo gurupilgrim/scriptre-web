@@ -26,7 +26,7 @@ func handleAPIBeta(w http.ResponseWriter, r *http.Request) {
 	verse, _ := getVerse(ref)
 	jsonVerse, _ := json.Marshal(verse)
 	fmt.Fprintf(w, "%s", jsonVerse)
-	fmt.Printf(w, "%s", jsonVerse)
+	fmt.Printf("%s", jsonVerse)
 	return
 }
 
