@@ -160,5 +160,6 @@ func initialize() {
 		bibleData = append(bibleData, *thisBible)
 	}
 
+	fmt.Printf("bibleData: %+v\n", bibleData)
 	fmt.Printf("finished initializing.\n")
 }
