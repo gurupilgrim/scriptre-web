@@ -62,10 +62,6 @@ func handleWeb(w http.ResponseWriter, r *http.Request) {
 	}
 	page := template.Must(template.ParseFiles("index.html", "quick_nav.html"))
 	page.Execute(w, thing)
-	//if err != nil {
-	//	fmt.Fprintf(w, "%v", err.Error())
-	//}
-	//_ = templates.ExecuteTemplate(w, "index.html", page)
 }
 
 func loadFile(file string) (*[]byte, error) {
@@ -91,7 +87,7 @@ func main() {
 func initialize() {
 	//determine which canon to use
 	canon := "protestant"
-	//get or have list of books in canon
+	//get a list of books in canon
 	canonFilename := fmt.Sprintf("./index/%s.canon", canon)
 	file, _ := os.Open(canonFilename)
 	scanner := bufio.NewScanner(file)
@@ -106,7 +102,7 @@ func initialize() {
 	}
 
 	//preload bibles
-	//what english bibles do I have?
+	//currently just english, possibly use languages as categories
 	enBibleNames, _ := ioutil.ReadDir("./bibles/en/")
 
 	//load bibles in to memory
@@ -121,19 +117,15 @@ func initialize() {
 			var thisBook Book
 			thisBook.Name = strings.TrimSuffix(strings.Replace(fmt.Sprintf("%s", bookFile.Name()), "_", " ", -1), ".sfm")
 			var curChapter = new(Chapter)
-			//var thisChapterNumber int
 			for scanner.Scan() {
 				if strings.HasPrefix(scanner.Text(), "\\c") {
 					if curChapter.Number > 0 {
 						thisBook.Chapters = append(thisBook.Chapters, *curChapter)
 					}
 					number := scanner.Text()[3:]
-					//thisChapterNumber, _ := strconv.Atoi(number)
 					chapter := new(Chapter)
 					chapter.Number, _ = strconv.Atoi(number)
 					curChapter = chapter
-					//if thisChapterNumber > 0 {
-					//}
 				} else if strings.HasPrefix(scanner.Text(), "\\v") {
 					thisVerse := new(Verse)
 					thisReference := new(Reference)

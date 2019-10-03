@@ -14,31 +14,28 @@ func handleAPIBeta(w http.ResponseWriter, r *http.Request) {
 	// get the query
 	url := strings.Split(r.URL.String(), "?")
 	urlparams := strings.Split(url[1], "&")
+	// read the url to see what action to take
 	params := make(map[string]string)
 	for _, param := range urlparams {
 		thisParam := strings.Split(param, "=")
 		params[thisParam[0]] = thisParam[1]
 	}
+	// get reference
 	ref, _ := getRef(params["query"], "protestant")
-	fmt.Printf("Found Reference: %v\n", ref)
+	// get verse
 	verse, _ := getVerse(ref)
-	fmt.Printf("verse: %+v\n", verse)
 	jsonVerse, _ := json.Marshal(verse)
 	fmt.Fprintf(w, "%s", jsonVerse)
-	fmt.Printf("\n\n")
 	return
 }
 
 func narrowBook(canon string, query []byte, startingNarrow []int) (int, []int) {
-
-	fmt.Printf("narrowBook with the following: %v | %v | %v\n", canon, query, startingNarrow)
 
 	var selectedBook int
 	var bookIsSelected bool
 
 	//get the *index* of the last character of the query using len
 	lenIndex := len(query) - 1
-	fmt.Printf("query is %v long\n", len(query))
 	//compare the *last* character in query with the indexnth character of each remaining book in startingNarrow
 	//create a new []int to include the newNarrow
 	var newNarrow []int
@@ -78,6 +75,7 @@ func narrowBook(canon string, query []byte, startingNarrow []int) (int, []int) {
 
 }
 
+// Narrows the possible books a reference could be by the prefix
 func narrowPrefix(canon string, prefix int) (int, []int) {
 	var newNarrow []int
 	var bookIsSelected bool
@@ -137,10 +135,10 @@ func narrowPrefix(canon string, prefix int) (int, []int) {
 	return selectedBook, newNarrow
 }
 
+// verifies the remaining bits of a string match a selected book name
 func verifyBook(canon string, query []byte, selectedBook int) bool {
 	//query is expected to not include the prefix or the verse number
 
-	fmt.Printf("verifying in %v with query %v against book name %v %v\n", canon, query, booknames[selectedBook][1], booknames[selectedBook][1])
 	var verified bool
 
 	//get selected book
@@ -149,10 +147,8 @@ func verifyBook(canon string, query []byte, selectedBook int) bool {
 	//look for a match
 	for i, character := range query {
 		if unicode.ToLower(rune(character)) == unicode.ToLower(rune(bookname[i])) {
-			fmt.Printf("%v and %v match.\n", character, bookname[i])
 			verified = true
 		} else {
-			fmt.Printf("%v and %v do not match.\n", character, bookname[i])
 			verified = false
 			break
 		}
@@ -160,6 +156,7 @@ func verifyBook(canon string, query []byte, selectedBook int) bool {
 	return verified
 }
 
+// generates a reference object based on a query
 func getRef(request string, canon string) (Reference, error) {
 
 	var result Reference
@@ -175,6 +172,7 @@ func getRef(request string, canon string) (Reference, error) {
 	var firstLetterIdentified bool
 	var firstNumberIdentified bool
 
+	// determine the parts of the query. first letter, last letter, etc.
 	for i, character := range []rune(request) {
 		if unicode.IsLetter(character) {
 			if firstLetterIdentified {
@@ -193,38 +191,28 @@ func getRef(request string, canon string) (Reference, error) {
 	}
 
 	var narrow []int
-	var hasPrefix bool
-	fmt.Printf("starting...\n")
-	fmt.Printf("query: %v\n", request)
-	fmt.Printf("first letter: %v, first number: %v, last letter: %v, bookname start: %v\n", firstLetterIndex, firstNumberIndex, lastLetterIndex, queryBooknameStart)
+	//var hasPrefix bool
 
 	//determine if we have a prefix (1, I, First, etc)
 	//do we have a number before a letter?
 	if firstNumberIndex < firstLetterIndex {
 		firstNumberString := string(request[firstNumberIndex])
 		firstNumber, _ := strconv.Atoi(firstNumberString)
-		fmt.Printf("a number comes before some text\n")
 
 		if firstNumber < 4 {
-			fmt.Printf("first number is less than 4\n")
 			if !(unicode.IsNumber(rune(request[firstNumberIndex+1]))) {
-				fmt.Printf("we have just one number. passing %v on\n", firstNumber)
 				_, narrow = narrowPrefix(canon, firstNumber)
-				fmt.Printf("narrow is now %v\n", narrow)
 			}
 		}
 		//if not, is the first letter an i?
 	} else if unicode.ToLower(rune(request[firstLetterIndex])) == []rune("i")[0] {
-		fmt.Printf("first letter is i\n")
 		//if so, what is the i followed by?
 		//loop through subsequent characters to determine a course of action
 		for i, char := range request {
 			character := unicode.ToLower(rune(char))
 			if i > 0 {
 				if character == []rune(" ")[0] {
-					hasPrefix = true
-					fmt.Printf("i is %v\n", i)
-					fmt.Printf("looking at %v\n", request[:i])
+					//hasPrefix = true
 					if strings.ToLower(request[:i]) == "i" {
 						_, narrow = narrowPrefix(canon, 1)
 						queryBooknameStart = i + 1
@@ -250,27 +238,23 @@ func getRef(request string, canon string) (Reference, error) {
 				}
 			}
 		}
-		fmt.Printf("has prefix is %v\n", hasPrefix)
-		fmt.Printf("narrow is now %v\n", narrow)
-		//space, another i, another two is
-		//try narrowing by name, if the next character doesn't match a book name, treat this as a prefix
+		//TODO try narrowing by name, if the next character doesn't match a book name, treat this as a prefix
 	}
-	//if not, is the first letter an f?
-	//if so, is it the word first?
-	//if not, is the first letter an s?
-	//if so, is it the word second?
-	//if not, is the first letter a t?
-	//if so, is it the word third?
+	//TODO if not, is the first letter an f?
+	//TODO if so, is it the word first?
+	//TODO if not, is the first letter an s?
+	//TODO if so, is it the word second?
+	//TODO if not, is the first letter a t?
+	//TODO if so, is it the word third?
 
 	//now we need to narrow this down to a specific book
 	var reqWord []byte
 	reqWord = []byte(fmt.Sprintf("%s", request[queryBooknameStart:]))
 
 	var bookNameIndex int
-	for i, char := range reqWord {
-		fmt.Printf("sending narrow %v with %v that is %v\n", narrow, char, fmt.Sprintf("%s", char))
+	// narrow the query down to a book
+	for i, _ := range reqWord {
 		curBook, newNarrow := narrowBook(canon, reqWord[:i+1], narrow)
-		fmt.Printf("got back %v and %v\n", curBook, newNarrow)
 		if len(newNarrow) == 1 {
 			bookNameIndex = curBook
 			break
@@ -283,19 +267,22 @@ func getRef(request string, canon string) (Reference, error) {
 		narrow = newNarrow
 		i = i + 1
 	}
-	fmt.Printf("Final Bookname: %v\n", booknames[bookNameIndex])
 	//req := unicode.ToLower(request[indexoffirstletter])
 	//compare that to a slice of strings that represents the selected canon
 	//get the index of each match for the first letter
 	//for each index that was a match, look for the second letter
 	//etc
+
 	//verify the bookname matches the rest of the query
 	//clean up the end of the string by removing anything after the last character
 	queryBookname := request[queryBooknameStart : lastLetterIndex+1]
-	fmt.Printf("verifying...\n")
 	verified := verifyBook(canon, []byte(queryBookname), bookNameIndex)
 	if verified {
-		result.Book = fmt.Sprintf("%s %s", booknames[bookNameIndex][0], booknames[bookNameIndex][1])
+		if booknames[bookNameIndex][0] != "" {
+			result.Book = fmt.Sprintf("%s %s", booknames[bookNameIndex][0], booknames[bookNameIndex][1])
+		} else {
+			result.Book = fmt.Sprintf("%s", booknames[bookNameIndex][1])
+		}
 		//if a book match is found, start looking for a reference within it
 
 		var chapterNumberGroup []rune
@@ -334,12 +321,6 @@ func getRef(request string, canon string) (Reference, error) {
 					lastNumberIndex = i
 				}
 			}
-			/*
-				if unicode.IsNumber(character) && !firstNumberIdentified {
-					firstNumberIndex = i
-					firstNumberIdentified = true
-				}
-			*/
 		}
 
 		//convert rune slice groups to ints
@@ -349,8 +330,6 @@ func getRef(request string, canon string) (Reference, error) {
 		result.Chapter = chapterNumber
 		result.VerseNumber = verseNumber
 		result.VerseRange = verseRange
-		fmt.Printf("complete reference should be [%v] %v:%v-%v.\n", result.Book, result.Chapter, result.VerseNumber, result.VerseRange)
-		fmt.Printf("because I have numbers [%v] %v:%v-%v.\n", booknames[bookNameIndex], chapterNumberGroup, verseNumberGroup, verseRangeGroup)
 	}
 
 	//look up how many chapters and verses in each chapter there are for that book
@@ -367,25 +346,10 @@ func getRef(request string, canon string) (Reference, error) {
 	return result, nil
 }
 
+// return a verse object based on a reference
 func getVerse(ref Reference) (Verse, error) {
 
-	fmt.Printf("ref: %+v\n", ref)
 	var verse *Verse
-	//verse := bibleData[0]
-	/*
-		verse := &Verse{
-			Reference: Reference{
-				BibleVersion: "kjv",
-				Book:         ref.Book,
-				Chapter:      ref.Chapter,
-				VerseNumber:  ref.VerseNumber,
-				Canon:        "protestant",
-			},
-			Language:   "en",
-			Subsection: "all",
-			Text:       "text",
-		}
-	*/
 	for _, bible := range bibleData {
 		if bible.Version == "kjv" {
 			for _, book := range bible.Books {
@@ -394,9 +358,7 @@ func getVerse(ref Reference) (Verse, error) {
 						if chapter.Number == ref.Chapter {
 							for _, v := range chapter.Verses {
 								if v.Reference.VerseNumber == ref.VerseNumber {
-									fmt.Printf("verse: %v\n", v)
 									verse = &v
-									fmt.Printf("verse: %v\n", verse)
 									break
 								}
 							}
@@ -407,6 +369,5 @@ func getVerse(ref Reference) (Verse, error) {
 		}
 	}
 
-	fmt.Printf("verse: %v\n", verse)
 	return *verse, nil
 }
