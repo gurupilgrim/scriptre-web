@@ -26,7 +26,6 @@ func handleAPIBeta(w http.ResponseWriter, r *http.Request) {
 	verse, _ := getVerse(ref)
 	jsonVerse, _ := json.Marshal(verse)
 	fmt.Fprintf(w, "%s", jsonVerse)
-	fmt.Printf("%s", jsonVerse)
 	return
 }
 
@@ -217,17 +216,14 @@ func getRef(request string, canon string) (Reference, error) {
 					if strings.ToLower(request[:i]) == "i" {
 						_, narrow = narrowPrefix(canon, 1)
 						queryBooknameStart = i + 1
-						fmt.Printf("narrowed by 1")
 						break
 					} else if strings.ToLower(request[:i]) == "ii" {
 						_, narrow = narrowPrefix(canon, 2)
 						queryBooknameStart = i + 1
-						fmt.Printf("narrowed by 2")
 						break
 					} else if strings.ToLower(request[:i]) == "iii" {
 						_, narrow = narrowPrefix(canon, 3)
 						queryBooknameStart = i + 1
-						fmt.Printf("narrowed by 3")
 						break
 					}
 				} else if character == []rune("i")[0] {
@@ -328,6 +324,13 @@ func getRef(request string, canon string) (Reference, error) {
 		chapterNumber, _ = strconv.Atoi(string(chapterNumberGroup))
 		verseNumber, _ = strconv.Atoi(string(verseNumberGroup))
 		verseRange, _ = strconv.Atoi(string(verseRangeGroup))
+
+		if !foundChapterNumber {
+			chapterNumber = 1
+		}
+		if !foundVerseNumber {
+			verseNumber = 1
+		}
 		result.Chapter = chapterNumber
 		result.VerseNumber = verseNumber
 		result.VerseRange = verseRange

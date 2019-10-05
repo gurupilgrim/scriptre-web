@@ -1,3 +1,5 @@
+var server = "script.re"
+
 document.getElementById("searchBox").onkeydown = function(event) {
 	if (event.keyCode == 13) {
 		loadVerses()
@@ -17,7 +19,7 @@ function loadVerses() {
   var verseTextP = document.createElement("p");
 
   var ajaxRequest = new XMLHttpRequest();
-  var apiRequest = "http://localhost/v0/query?query=" + queryText
+  var apiRequest = "http://" + server + "/v0/query?query=" + queryText
   ajaxRequest.open("GET", apiRequest, true);
 
   ajaxRequest.onload = function() {
