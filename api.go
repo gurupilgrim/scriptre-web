@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -11,22 +12,78 @@ import (
 )
 
 func handleAPIBeta(w http.ResponseWriter, r *http.Request) {
-	// get the query
+
+	// get and parse the query
 	url := strings.Split(r.URL.String(), "?")
 	urlparams := strings.Split(url[1], "&")
-	// read the url to see what action to take
 	params := make(map[string]string)
 	for _, param := range urlparams {
 		thisParam := strings.Split(param, "=")
 		params[thisParam[0]] = thisParam[1]
 	}
-	// get reference
-	ref, _ := getRef(params["query"], "protestant")
-	// get verse
-	verse, _ := getVerse(ref)
-	jsonVerse, _ := json.Marshal(verse)
-	fmt.Fprintf(w, "%s", jsonVerse)
+	mode := strings.TrimPrefix(url[0], "/v0/")
+
+	// read the url to see what action to take
+	switch mode {
+	case "query":
+		// find the reference
+		ref, _ := getRef(params["query"], "protestant")
+		// get this verse
+		verse, _ := getVerse(ref)
+		jsonVerse, _ := json.Marshal(verse)
+		fmt.Fprintf(w, "%s", jsonVerse)
+		return
+	case "previous":
+		// get the reference
+		ref, _ := verifyReference(params["ref"], "protestant")
+		fmt.Printf("1\n")
+
+		// determine mode
+		var searchMode string
+		if modeVar, ok := params["mode"]; ok {
+			searchMode = modeVar
+		} else {
+			searchMode = "verse"
+		}
+		fmt.Printf("2\n")
+
+		newRef := ref
+		// determine if the target verse reference exists
+		switch searchMode {
+		case "verse":
+			newRef.VerseNumber = ref.VerseNumber - 1
+		case "chapter":
+			newRef.Chapter = ref.Chapter - 1
+			//case "book":
+			//	newRef.VerseNumber = ref.VerseNumber + 1
+		}
+		fmt.Printf("3\n")
+
+		verse, err := getVerse(newRef)
+		fmt.Printf("4\n")
+		if err != nil {
+			verse, _ := getVerse(ref)
+			jsonVerse, _ := json.Marshal(verse)
+			fmt.Fprintf(w, "%s", jsonVerse)
+			fmt.Printf("5\n")
+			return
+		}
+		jsonVerse, _ := json.Marshal(verse)
+		fmt.Fprintf(w, "%s", jsonVerse)
+		fmt.Printf("6\n")
+		return
+	}
 	return
+}
+
+func verifyReference(refString string, canon string) (Reference, error) {
+	// see if this reference is viable
+	var realRef Reference
+	realRef, err := getRef(refString, "protestant")
+	if err != nil {
+		return realRef, err
+	}
+	return realRef, nil
 }
 
 func narrowBook(canon string, query []byte, startingNarrow []int) (int, []int) {
@@ -353,6 +410,11 @@ func getRef(request string, canon string) (Reference, error) {
 // return a verse object based on a reference
 func getVerse(ref Reference) (Verse, error) {
 
+	var emptyVerse Verse
+	if ref.VerseNumber == 0 {
+		errVerseOutOfRange := errors.New("Verse number out of range")
+		return emptyVerse, errVerseOutOfRange
+	}
 	var verse *Verse
 	for _, bible := range bibleData {
 		if bible.Version == "kjv" {
@@ -371,6 +433,11 @@ func getVerse(ref Reference) (Verse, error) {
 				}
 			}
 		}
+	}
+
+	if verse == &emptyVerse {
+		errVerseNotFound := errors.New("Verse not found")
+		return emptyVerse, errVerseNotFound
 	}
 
 	return *verse, nil
