@@ -10,6 +10,15 @@ html {
 .header p {
 }
 
+#simpleNav {
+  border-radius: 0.5em;
+  box-shadow: #16425B 0 0 2px 0.1em;
+  overflow: hidden;
+}
+#simpleNav button {
+  border: 1px solid #16425B;
+}
+
 .content input {
   
 }
@@ -43,5 +52,26 @@ html {
 }
 
 .footer {
-  background-color: #efefef;
+  background-color: #c3c3c3;
+}
+
+
+.btn-1 {
+  color: #979291;
+}
+.btn-1:before {
+  content: '';
+  top: 0;
+  left: 0;
+  border-right: 50px solid transparent;
+  border-bottom: 80px solid #504c4c;
+  -webkit-transform: translateX(-100%);
+          transform: translateX(-100%);
+}
+.btn-1:hover {
+  color: #e1dfdf;
+}
+.btn-1:hover:before {
+  -webkit-transform: translateX(0);
+          transform: translateX(0);
 }
