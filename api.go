@@ -36,7 +36,6 @@ func handleAPIBeta(w http.ResponseWriter, r *http.Request) {
 	case "previous":
 		// get the reference
 		ref, _ := verifyReference(params["ref"], "protestant")
-		fmt.Printf("1\n")
 
 		// determine mode
 		var searchMode string
@@ -45,7 +44,6 @@ func handleAPIBeta(w http.ResponseWriter, r *http.Request) {
 		} else {
 			searchMode = "verse"
 		}
-		fmt.Printf("2\n")
 
 		newRef := ref
 		// determine if the target verse reference exists
@@ -57,20 +55,49 @@ func handleAPIBeta(w http.ResponseWriter, r *http.Request) {
 			//case "book":
 			//	newRef.VerseNumber = ref.VerseNumber + 1
 		}
-		fmt.Printf("3\n")
 
 		verse, err := getVerse(newRef)
-		fmt.Printf("4\n")
 		if err != nil {
 			verse, _ := getVerse(ref)
 			jsonVerse, _ := json.Marshal(verse)
 			fmt.Fprintf(w, "%s", jsonVerse)
-			fmt.Printf("5\n")
 			return
 		}
 		jsonVerse, _ := json.Marshal(verse)
 		fmt.Fprintf(w, "%s", jsonVerse)
-		fmt.Printf("6\n")
+		return
+	case "next":
+		// get the reference
+		ref, _ := verifyReference(params["ref"], "protestant")
+
+		// determine mode
+		var searchMode string
+		if modeVar, ok := params["mode"]; ok {
+			searchMode = modeVar
+		} else {
+			searchMode = "verse"
+		}
+
+		newRef := ref
+		// determine if the target verse reference exists
+		switch searchMode {
+		case "verse":
+			newRef.VerseNumber = ref.VerseNumber + 1
+		case "chapter":
+			newRef.Chapter = ref.Chapter + 1
+			//case "book":
+			//	newRef.VerseNumber = ref.VerseNumber + 1
+		}
+
+		verse, err := getVerse(newRef)
+		if err != nil {
+			verse, _ := getVerse(ref)
+			jsonVerse, _ := json.Marshal(verse)
+			fmt.Fprintf(w, "%s", jsonVerse)
+			return
+		}
+		jsonVerse, _ := json.Marshal(verse)
+		fmt.Fprintf(w, "%s", jsonVerse)
 		return
 	}
 	return
@@ -415,13 +442,24 @@ func getVerse(ref Reference) (Verse, error) {
 		errVerseOutOfRange := errors.New("Verse number out of range")
 		return emptyVerse, errVerseOutOfRange
 	}
+	if ref.Chapter == 0 {
+		errChapterOutOfRange := errors.New("Chapter number out of range")
+		return emptyVerse, errChapterOutOfRange
+	}
 	var verse *Verse
 	for _, bible := range bibleData {
 		if bible.Version == "kjv" {
 			for _, book := range bible.Books {
 				if book.Name == ref.Book {
+					if ref.Chapter > len(book.Chapters) {
+						errChapterOutOfRange := errors.New("Chapter number out of range")
+						return emptyVerse, errChapterOutOfRange
+					}
 					for _, chapter := range book.Chapters {
 						if chapter.Number == ref.Chapter {
+							if ref.VerseNumber > len(chapter.Verses) {
+								verse = &chapter.Verses[len(chapter.Verses)-1]
+							}
 							for _, v := range chapter.Verses {
 								if v.Reference.VerseNumber == ref.VerseNumber {
 									verse = &v
@@ -435,7 +473,7 @@ func getVerse(ref Reference) (Verse, error) {
 		}
 	}
 
-	if verse == &emptyVerse {
+	if *verse == emptyVerse {
 		errVerseNotFound := errors.New("Verse not found")
 		return emptyVerse, errVerseNotFound
 	}
