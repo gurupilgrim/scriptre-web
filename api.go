@@ -29,9 +29,9 @@ func handleAPIBeta(w http.ResponseWriter, r *http.Request) {
 		// find the reference
 		ref, _ := getRef(params["query"], "protestant")
 		// get this verse
-		verse, _ := getVerse(ref)
-		jsonVerse, _ := json.Marshal(verse)
-		fmt.Fprintf(w, "%s", jsonVerse)
+		verses := getVerseRangeChapterEnd(ref)
+		jsonVerses, _ := json.Marshal(verses)
+		fmt.Fprintf(w, "%s", jsonVerses)
 		return
 	case "previous":
 		// get the reference
@@ -50,10 +50,24 @@ func handleAPIBeta(w http.ResponseWriter, r *http.Request) {
 		switch searchMode {
 		case "verse":
 			newRef.VerseNumber = ref.VerseNumber - 1
+			verse, err := getVerse(newRef)
+			if err != nil {
+				verse, _ := getVerse(ref)
+				jsonVerse, _ := json.Marshal(verse)
+				fmt.Fprintf(w, "%s", jsonVerse)
+				return
+			}
+			jsonVerse, _ := json.Marshal(verse)
+			fmt.Fprintf(w, "%s", jsonVerse)
+			return
 		case "chapter":
 			newRef.Chapter = ref.Chapter - 1
 			//case "book":
 			//	newRef.VerseNumber = ref.VerseNumber + 1
+			verses := getVerseRangeChapterEnd(newRef)
+			jsonVerses, _ := json.Marshal(verses)
+			fmt.Fprintf(w, "%s", jsonVerses)
+			return
 		}
 
 		verse, err := getVerse(newRef)
@@ -111,6 +125,40 @@ func verifyReference(refString string, canon string) (Reference, error) {
 		return realRef, err
 	}
 	return realRef, nil
+}
+
+func getVerseRangeChapterEnd(ref Reference) []Verse {
+
+	if ref.VerseNumber < 1 {
+		ref.VerseNumber = 0
+	}
+	if ref.Chapter < 1 {
+		ref.Chapter = 0
+	}
+	var verses []Verse
+
+	for _, bible := range bibleData {
+		if bible.Version == "kjv" {
+			for _, book := range bible.Books {
+				if book.Name == ref.Book {
+					if ref.Chapter > len(book.Chapters) {
+						ref.Chapter = len(book.Chapters) - 1
+					}
+					i := ref.VerseNumber - 1
+
+					for {
+						if i == len(book.Chapters[ref.Chapter-1].Verses) {
+							break
+						}
+						verses = append(verses, book.Chapters[ref.Chapter-1].Verses[i])
+						i++
+					}
+				}
+			}
+		}
+	}
+
+	return verses
 }
 
 func narrowBook(canon string, query []byte, startingNarrow []int) (int, []int) {
@@ -447,6 +495,22 @@ func getVerse(ref Reference) (Verse, error) {
 		return emptyVerse, errChapterOutOfRange
 	}
 	var verse *Verse
+	/*
+		var selectedVerse int
+		var selectedChapter int
+		if ref.Chapter > len(bibleData.Version[ref.Version].Books[ref.Book].Chapters) {
+			selectedChapter = len(bibleData.Version[ref.Version].Books[ref.Book].Chapters)
+		} else {
+			selectedChapter = ref.Chapter
+		}
+		if ref.Verse > len(bibleData.Version[ref.Version].Books[ref.Book].Chapters[selectedChapter].Verses) {
+			selectedVerse = len(bibleData.Version[ref.Version].Books[ref.Book].Chapters[selectedChapter].Verses)
+		} else {
+			selectedVerse = ref.VerseNumber
+		}
+		verse = &bibleData.Version[ref.Version].Books[ref.Book].Chapters[selectedChapter].Verses[selectedVerse]
+
+	*/
 	for _, bible := range bibleData {
 		if bible.Version == "kjv" {
 			for _, book := range bible.Books {

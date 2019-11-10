@@ -11,8 +11,8 @@ body {
 .page_wrapper {
   display: grid;
   grid-template-columns: 80% 20%;
-  grid-template-rows: auto 1fr 2em;
-  min-height: 100%;
+  grid-template-rows: auto minmax(0,1fr) 2em;
+  height: 100%;
   overflow: hidden;
 }
 .page_wrapper:after{
@@ -31,20 +31,26 @@ body {
 
 .container {
   grid-row-start: 2;
-  display: block;
+  grid-template-rows: auto 1fr;
+  display: grid;
   width: 80%;
   margin: 0 0 0 14%;
-  padding: 2em 0;
+  padding: 2em 0 0 0;
 }
 
-.content {
+#navArea {
   float: left;
   width: 100%;
 }
-.content input {
+#navArea input {
   width: 90%;
   height: 2em;
   margin: 0 auto;
+}
+.content {
+  float: left;
+  width: 100%;
+  overflow-y: scroll;
 }
 
 #simpleNav {

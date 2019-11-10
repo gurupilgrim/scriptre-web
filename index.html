@@ -27,8 +27,8 @@
 	  <p>@:::)===&gt;</p>
   </div>
   <div class="container">
-  <div id="content" class="content">
-	  <input id="searchBox" type="text" autofocus="autofocus" placeholder="Reference or word search..." />
+    <div id="navArea" class="navArea">
+	  <input id="searchBox" type="text" autofocus="autofocus" placeholder="Reference search..." autocomplete="off"/>
 	  <div id="simpleNav">
 		  <button class="doubleleft" onclick='previous("chapter")'><span></span></button>
 		  <button class="left" onclick="previous()"></button>
@@ -36,8 +36,10 @@
 		  <button class="right" onclick="next()"></button>
 		  <button class="doubleright" onclick='next("chapter")'><span></span></button>
 	  </div>
+    </div>
+    <div id="content" class="content"></div>
   </div>
-</div>
+
   <div class="sidebar">
 	  <div class="copy_options">
 		  <button onclick="loadVerses()">Load Verse</button>
