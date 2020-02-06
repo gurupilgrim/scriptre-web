@@ -166,11 +166,13 @@ function next(mode) {
   ajaxRequest.onload = function() {
 	responseData = JSON.parse(ajaxRequest.responseText);
 	clearContent()
-	makeVerseBox(responseData);
-  	document.getElementById("simpleInfo").innerHTML = responseData['Reference']['Book'];
-	leadBook = responseData['Reference']['Book']
-	leadChapter = responseData['Reference']['Chapter']
-	leadVerse = responseData['Reference']['VerseNumber']
+	responseData.forEach(function(item,key){
+		makeVerseBox(item);
+	});
+  	document.getElementById("simpleInfo").innerHTML = responseData[Object.keys(responseData)[0]]['Reference']['Book'];
+	leadBook = responseData[Object.keys(responseData)[0]]['Reference']['Book']
+	leadChapter = responseData[Object.keys(responseData)[0]]['Reference']['Chapter']
+	leadVerse = responseData[Object.keys(responseData)[0]]['Reference']['VerseNumber']
   };
   ajaxRequest.onerror = function() {
   	alert("Error!");

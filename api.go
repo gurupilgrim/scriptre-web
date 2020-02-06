@@ -99,6 +99,10 @@ func handleAPIBeta(w http.ResponseWriter, r *http.Request) {
 			newRef.VerseNumber = ref.VerseNumber + 1
 		case "chapter":
 			newRef.Chapter = ref.Chapter + 1
+			verses := getVerseRangeChapterEnd(newRef)
+			jsonVerses, _ := json.Marshal(verses)
+			fmt.Fprintf(w, "%s", jsonVerses)
+			return
 			//case "book":
 			//	newRef.VerseNumber = ref.VerseNumber + 1
 		}
